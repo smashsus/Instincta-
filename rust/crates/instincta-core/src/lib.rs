@@ -64,6 +64,7 @@ pub struct RustInstagramCore {
 
 #[uniffi::export]
 impl RustInstagramCore {
+    #[allow(clippy::new_without_default)]
     #[uniffi::constructor]
     pub fn new() -> Arc<Self> {
         Arc::new(Self {

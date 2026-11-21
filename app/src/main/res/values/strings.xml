@@ -1,0 +1,17 @@
+<resources>
+    <string name="app_name">Instincta</string>
+    <string name="editorial_issue_label">CLIENT · GRAPH API</string>
+    <string name="auth_headline">Your Instagram workspace,\nwithout the noise.</string>
+    <string name="auth_subheadline">Connect your Instagram Creator or Business account via official Meta OAuth to manage your grid, insights, publishing, comments, and DMs.</string>
+    <string name="continue_with_instagram">Continue with Instagram</string>
+    <string name="cd_editorial_hero">Editorial architectural photograph</string>
+    <string name="nav_grid">Grid</string>
+    <string name="nav_insights">Insights</string>
+    <string name="nav_create">Publish</string>
+    <string name="nav_messages">Inbox</string>
+    <string name="nav_account">Account</string>
+    <string name="cd_refresh">Refresh</string>
+    <string name="cd_comment">Comments</string>
+    <string name="cd_share">Share</string>
+    <string name="cd_back">Back</string>
+</resources>

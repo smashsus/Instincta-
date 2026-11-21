@@ -1,0 +1,6 @@
+{
+  "name": "Instincta",
+  "description": "Editorial visual social media app with feeds, stories, reels, explore, messaging, and profiles.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

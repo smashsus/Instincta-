@@ -1,16 +1,21 @@
+
 name: Instincta CI
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [main, master]
   pull_request:
-    branches: [ main, master ]
+    branches: [main, master]
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   android:
     name: Android (Kotlin & Compose)
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -24,32 +29,38 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
+      # Fixes the non-interactive license acceptance failure
+      - name: Accept Android SDK licenses
+        run: yes | sdkmanager --licenses
+
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: '9.3.1'
 
-      - name: Prepare debug keystore
-        run: |
-          if [ ! -f debug.keystore ] && [ -f debug.keystore.base64 ]; then
-            base64 -d debug.keystore.base64 > debug.keystore
-          fi
+      - name: Grant Gradle wrapper permissions
+        run: chmod +x ./gradlew
 
-      - name: Build Debug APK & Run Unit Tests
-        run: gradle :app:assembleDebug :app:testDebugUnitTest --stacktrace
+      - name: Build Debug APK
+        run: ./gradlew :app:assembleDebug --stacktrace
+
+      - name: Run Android Unit Tests
+        run: ./gradlew :app:testDebugUnitTest --stacktrace
 
       - name: Upload Debug APK
         uses: actions/upload-artifact@v4
         with:
           name: instincta-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
 
   rust:
     name: Rust Core & Axum OAuth Proxy
     runs-on: ubuntu-latest
+
     defaults:
       run:
         working-directory: rust
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -64,6 +75,9 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: rust
+
+      - name: Check Rust formatting
+        run: cargo fmt --all -- --check
 
       - name: Check Rust workspace
         run: cargo check --workspace --all-targets

@@ -12,6 +12,11 @@ permissions:
   contents: read
 
 jobs:
+
+  # ==========================================
+  # ANDROID - KOTLIN & JETPACK COMPOSE
+  # ==========================================
+
   android:
     name: Android (Kotlin & Compose)
     runs-on: ubuntu-latest
@@ -29,39 +34,49 @@ jobs:
       - name: Configure Android SDK
         run: |
           echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
-          echo "$ANDROID_HOME/cmdline-tools/latest/bin" >> $GITHUB_PATH
+          echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> $GITHUB_ENV
+
+          SDKMANAGER=$(find "$ANDROID_HOME/cmdline-tools" \
+            -type f -name sdkmanager | sort -V | tail -n 1)
+
+          if [ -z "$SDKMANAGER" ]; then
+            echo "Android sdkmanager not found"
+            exit 1
+          fi
+
+          echo "$(dirname "$SDKMANAGER")" >> $GITHUB_PATH
           echo "$ANDROID_HOME/platform-tools" >> $GITHUB_PATH
 
       - name: Verify Android SDK
         run: |
           echo "ANDROID_HOME=$ANDROID_HOME"
-          ls -la "$ANDROID_HOME/cmdline-tools"
           sdkmanager --version
 
       - name: Accept Android SDK licenses
-        run: yes | sdkmanager --licenses
+        run: |
+          set -o pipefail
+          yes | sdkmanager --licenses
 
       - name: Install Android SDK components
         run: |
-          sdkmanager "platform-tools"
-          sdkmanager "platforms;android-36"
-          sdkmanager "build-tools;36.0.0"
-
-      - name: Verify SDK installation
-        run: |
-          sdkmanager --list_installed
+          sdkmanager \
+            "platform-tools" \
+            "platforms;android-36" \
+            "build-tools;36.0.0"
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.3.1'
 
-      - name: Grant Gradle wrapper permissions
-        run: chmod +x ./gradlew
+      - name: Verify Gradle
+        run: gradle --version
 
       - name: Build Debug APK
-        run: ./gradlew :app:assembleDebug --stacktrace
+        run: gradle :app:assembleDebug --stacktrace
 
       - name: Run Android Unit Tests
-        run: ./gradlew :app:testDebugUnitTest --stacktrace
+        run: gradle :app:testDebugUnitTest --stacktrace
 
       - name: Upload Debug APK
         uses: actions/upload-artifact@v4
@@ -70,6 +85,11 @@ jobs:
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 14
+
+
+  # ==========================================
+  # RUST - CORE & AXUM OAUTH PROXY
+  # ==========================================
 
   rust:
     name: Rust Core & Axum OAuth Proxy
@@ -83,25 +103,28 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install Rust toolchain
+      - name: Install Rust Toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
           targets: aarch64-linux-android, armv7-linux-androideabi
 
-      - name: Cache Cargo dependencies
+      - name: Cache Cargo Dependencies
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: rust
 
-      - name: Check Rust formatting
+      - name: Automatically Format Rust Code
+        run: cargo fmt --all
+
+      - name: Verify Rust Formatting
         run: cargo fmt --all -- --check
 
-      - name: Check Rust workspace
+      - name: Check Rust Workspace
         run: cargo check --workspace --all-targets
 
       - name: Run Clippy
         run: cargo clippy --workspace --all-targets -- -D warnings
 
-      - name: Run Rust workspace tests
+      - name: Run Rust Workspace Tests
         run: cargo test --workspace

@@ -31,36 +31,26 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      # Configure Android SDK
       - name: Configure Android SDK
         shell: bash
         run: |
           echo "ANDROID_HOME=$ANDROID_HOME" >> "$GITHUB_ENV"
           echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> "$GITHUB_ENV"
 
-          if [ -x "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" ]; then
-            SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin"
-          else
-            SDKMANAGER=$(find "$ANDROID_HOME/cmdline-tools" \
-              -type f -name sdkmanager | head -n 1)
+          SDKMANAGER=$(find "$ANDROID_HOME/cmdline-tools" \
+            -type f -name sdkmanager | sort -V | tail -n 1)
 
-            if [ -z "$SDKMANAGER" ]; then
-              echo "ERROR: sdkmanager not found"
-              exit 1
-            fi
-
-            SDKMANAGER=$(dirname "$SDKMANAGER")
+          if [ -z "$SDKMANAGER" ]; then
+            echo "ERROR: sdkmanager not found"
+            exit 1
           fi
 
-          echo "$SDKMANAGER" >> "$GITHUB_PATH"
+          echo "$(dirname "$SDKMANAGER")" >> "$GITHUB_PATH"
           echo "$ANDROID_HOME/platform-tools" >> "$GITHUB_PATH"
 
       - name: Verify Android SDK
-        run: |
-          echo "ANDROID_HOME=$ANDROID_HOME"
-          sdkmanager --version
+        run: sdkmanager --version
 
-      # Accept licenses without broken-pipe failures
       - name: Accept Android SDK licenses
         shell: bash
         run: |
@@ -74,10 +64,6 @@ jobs:
             "platforms;android-36" \
             "build-tools;36.0.0"
 
-      - name: Verify SDK installation
-        run: sdkmanager --list_installed
-
-      # No Gradle wrapper required
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
@@ -86,11 +72,56 @@ jobs:
       - name: Verify Gradle
         run: gradle --version
 
+      # ======================================
+      # DEBUG KEYSTORE FIX
+      # ======================================
+
+      - name: Prepare Debug Keystore
+        shell: bash
+        run: |
+          if [ -f debug.keystore ]; then
+            echo "Existing debug keystore found."
+
+          elif [ -f debug.keystore.base64 ]; then
+            echo "Restoring debug keystore from base64."
+            base64 -d debug.keystore.base64 > debug.keystore
+
+          else
+            echo "Generating temporary debug keystore."
+
+            keytool -genkeypair -v \
+              -keystore debug.keystore \
+              -storepass android \
+              -alias androiddebugkey \
+              -keypass android \
+              -keyalg RSA \
+              -keysize 2048 \
+              -validity 10000 \
+              -dname "CN=Android Debug,O=Android,C=US"
+          fi
+
+          test -s debug.keystore
+
+      - name: Verify Debug Keystore
+        run: |
+          keytool -list \
+            -keystore debug.keystore \
+            -storepass android
+
+      # ======================================
+      # BUILD AND TEST
+      # ======================================
+
       - name: Build Debug APK
-        run: gradle :app:assembleDebug --stacktrace
+        run: |
+          gradle :app:assembleDebug \
+            --stacktrace \
+            --warning-mode all
 
       - name: Run Android Unit Tests
-        run: gradle :app:testDebugUnitTest --stacktrace
+        run: |
+          gradle :app:testDebugUnitTest \
+            --stacktrace
 
       - name: Upload Debug APK
         uses: actions/upload-artifact@v4
